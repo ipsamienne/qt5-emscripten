@@ -105,17 +105,18 @@ class QNetworkReplyEmscriptenImplPrivate: public QNetworkReplyPrivate
 {
 public:
     QNetworkReplyEmscriptenImplPrivate();
+    ~QNetworkReplyEmscriptenImplPrivate();
 
     QNetworkAccessManagerPrivate *managerPrivate;
     void doSendRequest();
 
     void jsRequest(const QString &verb, const QString &url, void *, void *, void *, void *);
 
-    static void onLoadCallback(int status, int textBuffer, int size);
-    static void onProgressCallback(int done, int bytesTotal, uint timestamp);
-    static void onRequestErrorCallback(int e, int status);
+    static void onLoadCallback(void *data, int status, int textBuffer, int size);
+    static void onProgressCallback(void *data, int done, int bytesTotal, uint timestamp);
+    static void onRequestErrorCallback(void *data, int e, int status);
     static void onStateChangedCallback(int status);
-    static void onResponseHeadersCallback(int headers);
+    static void onResponseHeadersCallback(void *data, int headers);
 
     void emitReplyError(QNetworkReply::NetworkError errorCode);
     void emitDataReadProgress(qint64 done, qint64 total);

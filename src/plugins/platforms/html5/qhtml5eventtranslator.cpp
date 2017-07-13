@@ -280,6 +280,50 @@ void QHTML5EventTranslator::processEvents()
             processKeyboard(e.first, &e.second);
         }
     }
+
+    EM_ASM(
+        if (window.progressUpdates) {
+            var updates = window.progressUpdates;
+            window.progressUpdates = [];
+
+            for (i = 0; i < updates.length; ++i) {
+                var update = updates[i];
+
+                 Runtime.dynCall('viiii', update.cb, [response.handler, update.loaded, update.total, update.date]);
+            }
+        }
+
+        if (window.responseHeaders) {
+            var headers = window.responseHeaders;
+            window.responseHeaders = [];
+
+            for (i = 0; i < headers.length; ++i) {
+                var response = headers[i];
+                //var ptr = allocate(intArrayFromString(response.data), 'i8', ALLOC_STACK);
+                var arr = intArrayFromString(response.data);
+                var ptr = _malloc(arr.length);
+                HEAPU8.set(arr, ptr);
+                Runtime.dynCall('vii', response.cb, [response.handler, ptr]);
+                _free(ptr);
+            }
+        }
+
+        if (window.responses) {
+            var responses = window.responses;
+            window.responses = [];
+
+            for (i = 0; i < responses.length; ++i) {
+                var response = responses[i];
+                window.response = null;
+
+                var byteArray = response.data;
+                var buffer = _malloc(byteArray.length);
+                HEAPU8.set(byteArray, buffer);
+                Module.Runtime.dynCall('viiii', response.cb, [response.handler, response.readyState, buffer, byteArray.length]);
+                _free(buffer);
+            }
+        }
+    );
 }
 
 int QHTML5EventTranslator::mouse_cb(int eventType, const EmscriptenMouseEvent *mouseEvent, void *userData)
@@ -428,7 +472,7 @@ void QHTML5EventTranslator::processMouse(int eventType, const EmscriptenMouseEve
     };
 
     if (window2 && !onFrame) {
-        QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::SynchronousDelivery>(window2,
+        QWindowSystemInterface::handleMouseEvent<QWindowSystemInterface::AsynchronousDelivery>(window2,
                                                                                               timestamp,
                                                                                               localPoint,
                                                                                               point,

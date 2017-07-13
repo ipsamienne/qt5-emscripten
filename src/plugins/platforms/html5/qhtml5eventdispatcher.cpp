@@ -69,20 +69,20 @@ bool QHtml5EventDispatcher::processEvents(QEventLoop::ProcessEventsFlags flags)
         processedCount += 1;
     } while (processed && hasPendingEvents() && processedCount < maxProcessedEvents);
 
-    std::cout << "processed " << processedCount << " events." << std::endl;
-    std::cout << "global events: " << qGlobalPostedEventsCount()
-        << " window system events: " << QWindowSystemInterface::windowSystemEventsQueued()
-        << std::endl;
+    //std::cout << "processed (" << processed << ")" << processedCount << " events." << std::endl;
+    //std::cout << "global events: " << qGlobalPostedEventsCount()
+        //<< " window system events: " << QWindowSystemInterface::windowSystemEventsQueued()
+        //<< std::endl;
 
     bool pending = hasPendingEvents();
     if (pending)
     {
-        std::cout << "Pending events -> sleep(30)" << std::endl;
+        //std::cout << "Pending events -> sleep(30)" << std::endl;
         emscripten_sleep_with_yield(30);
     }
     else
     {
-        std::cout << "No pending events -> sleep(30)" << std::endl;
+        //std::cout << "No pending events -> sleep(30)" << std::endl;
         emscripten_sleep_with_yield(30);
     }
 

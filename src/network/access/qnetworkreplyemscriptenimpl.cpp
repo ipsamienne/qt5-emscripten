@@ -39,6 +39,7 @@
 
 #include "qnetworkreplyemscriptenimpl_p.h"
 
+#include <QTimer>
 #include "QtCore/qdatetime.h"
 #include "qnetworkaccessmanager_p.h"
 #include <QtCore/QCoreApplication>
@@ -47,6 +48,8 @@
 #include "qnetworkfile_p.h"
 #include "qnetworkrequest.h"
 //#include "qnetworkaccessbackend_p.h"
+
+#include <iostream>
 
 QT_BEGIN_NAMESPACE
 
@@ -62,6 +65,11 @@ QNetworkReplyEmscriptenImplPrivate::QNetworkReplyEmscriptenImplPrivate()
       downloadZerocopyBuffer(0)
 {
     gHandler = this;
+}
+
+QNetworkReplyEmscriptenImplPrivate::~QNetworkReplyEmscriptenImplPrivate()
+{
+    std::cout << "QNetworkReplyEmscriptenImplPrivate::~QNetworkReplyEmscriptenImplPrivate(): " << this << std::endl;
 }
 
 QNetworkReplyEmscriptenImpl::~QNetworkReplyEmscriptenImpl()
@@ -165,7 +173,7 @@ void QNetworkReplyEmscriptenImpl::emitReplyError(QNetworkReply::NetworkError err
     setFinished(true);
     emit error(errorCode);
     QMetaObject::invokeMethod(this, "finished", Qt::QueuedConnection);
-    qApp->processEvents();
+    //qApp->processEvents();
 }
 
 void QNetworkReplyEmscriptenImplPrivate::setup(QNetworkAccessManager::Operation op, const QNetworkRequest &req,
@@ -215,11 +223,16 @@ void QNetworkReplyEmscriptenImplPrivate::setup(QNetworkAccessManager::Operation 
     doSendRequest();
 }
 
-void QNetworkReplyEmscriptenImplPrivate::onLoadCallback(int readyState, int buffer, int bufferSize)
+void QNetworkReplyEmscriptenImplPrivate::onLoadCallback(void *data, int readyState, int buffer, int bufferSize)
 {
+    std::cout << "load callback 1" << std::endl;
+    QNetworkReplyEmscriptenImplPrivate *handler = reinterpret_cast<QNetworkReplyEmscriptenImplPrivate*>(data);
+
+    std::cout << "load callback 2: " << handler << std::endl;
     // FIXME TODO do something with null termination lines ??
     qDebug() << Q_FUNC_INFO << (int)readyState << bufferSize;
 
+    std::cout << "load callback 3" << std::endl;
     switch(readyState) {
     case 0://unsent
         break;
@@ -230,25 +243,34 @@ void QNetworkReplyEmscriptenImplPrivate::onLoadCallback(int readyState, int buff
     case 3://loading
         break;
     case 4://done
-        gHandler->dataReceived((char *)buffer/*, bufferSize*/);
+        std::cout << "load callback 4" << std::endl;
+        handler->dataReceived((char *)buffer/*, bufferSize*/);
         break;
     };
+    std::cout << "load callback 5" << std::endl;
  }
 
-void QNetworkReplyEmscriptenImplPrivate::onProgressCallback(int done, int total, uint timestamp)
+void QNetworkReplyEmscriptenImplPrivate::onProgressCallback(void* data, int done, int total, uint timestamp)
 {
-    gHandler->emitDataReadProgress(done, total);
+    QNetworkReplyEmscriptenImplPrivate *handler = reinterpret_cast<QNetworkReplyEmscriptenImplPrivate*>(data);
+    std::cout << "Progress callback 1: " << handler << " " << done << " " << total << " " << timestamp << std::endl;
+    handler->emitDataReadProgress(done, total);
+    std::cout << "Progress callback 2" << std::endl;
 }
 
-void QNetworkReplyEmscriptenImplPrivate::onRequestErrorCallback(int state, int status)
+void QNetworkReplyEmscriptenImplPrivate::onRequestErrorCallback(void* data, int state, int status)
 {
+    QNetworkReplyEmscriptenImplPrivate *handler = reinterpret_cast<QNetworkReplyEmscriptenImplPrivate*>(data);
     qDebug() << Q_FUNC_INFO << state << status;
-    gHandler->emitReplyError(QNetworkReply::UnknownNetworkError);
+    handler->emitReplyError(QNetworkReply::UnknownNetworkError);
 }
 
-void QNetworkReplyEmscriptenImplPrivate::onResponseHeadersCallback(int headers)
+void QNetworkReplyEmscriptenImplPrivate::onResponseHeadersCallback(void* data, int headers)
 {
-    gHandler->headersReceived((char *)headers);
+    QNetworkReplyEmscriptenImplPrivate *handler = reinterpret_cast<QNetworkReplyEmscriptenImplPrivate*>(data);
+    std::cout << "onResponseHeadersCallback 1: " << (char*)headers << std::endl;
+    handler->headersReceived((char *)headers);
+    std::cout << "onResponseHeadersCallback 2" << std::endl;
 }
 
 void QNetworkReplyEmscriptenImplPrivate::doSendRequest()
@@ -267,12 +289,13 @@ void QNetworkReplyEmscriptenImplPrivate::doSendRequest()
 /* const QString &body, const QList<QPair<QByteArray, QByteArray> > &headers ,*/
 void QNetworkReplyEmscriptenImplPrivate::jsRequest(const QString &verb, const QString &url, void *loadCallback, void *progressCallback, void *errorCallback, void *onResponseHeadersCallback)
 {
-
+    std::cout << "jsRequest 1" << std::endl;
     qDebug() << Q_FUNC_INFO << verb;
     QString extraData;
     if (outgoingData)
         extraData = outgoingData->readAll();
 
+    std::cout << "jsRequest 2" << std::endl;
     if (verb == "POST" && extraData.startsWith("?"))
         extraData.remove("?");
 
@@ -280,49 +303,53 @@ void QNetworkReplyEmscriptenImplPrivate::jsRequest(const QString &verb, const QS
              << outgoingDataBuffer.data()
              << extraData;
 
-      // Probably a good idea to save any shared pointers as members in C++
-      // so the objects they point to survive as long as you need them
+    std::cout << "jsRequest 3" << std::endl;
+    // Probably a good idea to save any shared pointers as members in C++
+    // so the objects they point to survive as long as you need them
 
-         QList<QByteArray> headersData = request.rawHeaderList();
-         QStringList headersList;
-         for (int i = 0; i < headersData.size(); ++i) {
-             qDebug()  << i
-                       << headersData.at(i)
-                       << request.rawHeader(headersData.at(i));
+    QList<QByteArray> headersData = request.rawHeaderList();
+    QStringList headersList;
+    for (int i = 0; i < headersData.size(); ++i) {
+        qDebug()  << i
+            << headersData.at(i)
+            << request.rawHeader(headersData.at(i));
 
-             headersList << QString(headersData.at(i)+":"+ request.rawHeader(headersData.at(i)));
-         }
+        headersList << QString(headersData.at(i)+":"+ request.rawHeader(headersData.at(i)));
+    }
 
-//         qDebug() << Q_FUNC_INFO << headersData;
+    //         qDebug() << Q_FUNC_INFO << headersData;
 
-        EM_ASM_ARGS({
-          var verb = Pointer_stringify($0);
-          var url = Pointer_stringify($1);
-          var onLoadCallbackPointer = $2;
-          var onProgressCallbackPointer = $3;
-          var onErrorCallbackPointer = $4;
-          var onHeadersCallback = $5;
+    std::cout << "jsRequest 4" << std::endl;
+    //QTimer::singleShot(200, [verb, url, loadCallback, progressCallback, errorCallback, onResponseHeadersCallback, extraData, headersList]() {
 
-          Module.print("Used method: " + verb);
 
-         var formData = new FormData();
-         var extraData = Pointer_stringify($6); // request parameters
-         var headersData = Pointer_stringify($7);
+    EM_ASM_ARGS({
+        var verb = Pointer_stringify($0);
+        var url = Pointer_stringify($1);
+        var onLoadCallbackPointer = $2;
+        var onProgressCallbackPointer = $3;
+        var onErrorCallbackPointer = $4;
+        var onHeadersCallback = $5;
+        var handler = $8;
 
-         if (extraData) {
-             var extra = extraData.split("&");
-             for (var i = 0; i < extra.length; i++) {
-                  console.log(extra[i].split("=")[0]);
-                  formData.append(extra[i].split("=")[0],extra[i].split("=")[1]);
-             }
-         }
-          var xhr;
-          xhr = new XMLHttpRequest();
-          xhr.responseType = "arraybuffer";
+        Module.print("Used method: " + verb);
 
-//xhr.withCredentials = true;
-          xhr.open(verb, url, true); //async
-  // xhrReq.open(method, url, async, user, password);
+        var formData = new FormData();
+        var extraData = Pointer_stringify($6); // request parameters
+        var headersData = Pointer_stringify($7);
+
+        if (extraData) {
+            var extra = extraData.split("&");
+            for (var i = 0; i < extra.length; i++) {
+                console.log(extra[i].split("=")[0]);
+                formData.append(extra[i].split("=")[0],extra[i].split("=")[1]);
+            }
+        }
+        var xhr;
+        xhr = new XMLHttpRequest();
+        xhr.responseType = "arraybuffer";
+
+        xhr.open(verb, url, true); //async
 
         if (headersData) {
             var headers = headersData.split("&");
@@ -332,42 +359,90 @@ void QNetworkReplyEmscriptenImplPrivate::jsRequest(const QString &verb, const QS
             }
         }
 
-  //xhr.withCredentials = true;
-
-
         xhr.onprogress = function(e) {
+            Module.print("progress 1");
             switch(xhr.status) {
               case 200:
               case 206:
               case 300:
               case 301:
               case 302: {
+                 Module.print("progress 2");
                  var date = xhr.getResponseHeader('Last-Modified');
+                 Module.print("progress 3");
                  date = ((date != null) ? new Date(date).getTime() / 1000 : 0);
-                 Runtime.dynCall('viii', onProgressCallbackPointer, [e.loaded, e.total, date]);
+                 Module.print("progress 4");
+                 //Runtime.dynCall('viii', onProgressCallbackPointer, [e.loaded, e.total, date]);
+                 Module.print("progress 5");
+
+                 if (window.progressUpdates == undefined)
+                     window.progressUpdates = [];
+
+                 var update = {};
+                 update.handler = handler;
+                 update.cb = onProgressCallbackPointer;
+                 update.loaded = e.loaded;
+                 update.total = e.total;
+                 update.date = date;
               }
              break;
            }
+            Module.print("progress 6");
         };
+
         xhr.onreadystatechange = function() {
             if (xhr.readyState == xhr.DONE) {
 
                var responseStr = xhr.getAllResponseHeaders();
                Module.print("response headers: " + responseStr);
-               var ptr = allocate(intArrayFromString(responseStr), 'i8', ALLOC_STACK);
-               Runtime.dynCall('vi', onHeadersCallback, [ptr]);
-               _free(ptr);
+               //var stk = Runtime.stackSave();
+               //var ptr = allocate(intArrayFromString(responseStr), 'i8', ALLOC_DEFAULT);
+               //Module.print("response headers 1");
+               //var arr = intArrayFromString(responseStr);
+               //Module.print("response headers 2");
+               //var ptr = _malloc(arr.length);
+               //Module.print("response headers 3");
+               //HEAPU8.set(arr, ptr);
+               //Module.print("response headers 4");
+               //Runtime.dynCall('vi', onHeadersCallback, [ptr]);
+               //Module.print("response headers 5");
+               //_free(ptr);
+               //Runtime.stackRestore();
+               Module.print("response headers 6");
+
+               var response = {};
+               response.handler = handler;
+               response.cb = onHeadersCallback;
+               response.data = responseStr;
+               //window.responseHeaders = response;
+
+               if (window.responseHeaders == undefined)
+                   window.responseHeaders = [];
+
+               window.responseHeaders.push(response);
+               Module.print("response headers 7");
               }
         };
 
-       xhr.onload = function(e) {
-        var byteArray = new Uint8Array(this.response);
-        Module.print("response: " + this.response + " " + byteArray.length);
-        var buffer = _malloc(byteArray.length);
-        HEAPU8.set(byteArray, buffer);
-        Module.Runtime.dynCall('viii', onLoadCallbackPointer, [this.readyState, buffer, byteArray.length]);
-        _free(buffer);
-      };
+        xhr.onload = function(e) {
+            var byteArray = new Uint8Array(this.response);
+            Module.print("response: " + this.response + " " + byteArray.length);
+            var response = {};
+            response.handler = handler;
+            response.cb = onLoadCallbackPointer;
+            response.data = byteArray;
+            response.readyState = this.readyState;
+
+            if (window.responses == undefined)
+                window.responses = [];
+
+            window.responses.push(response);
+            //window.response = response;
+            //var buffer = _malloc(byteArray.length);
+            //HEAPU8.set(byteArray, buffer);
+            //Module.Runtime.dynCall('viii', onLoadCallbackPointer, [this.readyState, buffer, byteArray.length]);
+            //_free(buffer);
+        };
 
         // error
         xhr.onerror = function(e) {
@@ -390,7 +465,9 @@ void QNetworkReplyEmscriptenImplPrivate::jsRequest(const QString &verb, const QS
                     errorCallback,
                     onResponseHeadersCallback,
                     extraData.toLatin1().data(),
-                    headersList.join("&").toLatin1().data());
+                    headersList.join("&").toLatin1().data(),
+                    this
+                    );
 }
 
 void QNetworkReplyEmscriptenImplPrivate::emitReplyError(QNetworkReply::NetworkError errorCode)
@@ -401,7 +478,7 @@ void QNetworkReplyEmscriptenImplPrivate::emitReplyError(QNetworkReply::NetworkEr
     emit q->error(QNetworkReply::UnknownNetworkError);
 
     emit q->finished();
-    qApp->processEvents();
+    //qApp->processEvents();
 }
 
 void QNetworkReplyEmscriptenImplPrivate::emitDataReadProgress(qint64 bytesReceived, qint64 bytesTotal)
@@ -431,7 +508,7 @@ void QNetworkReplyEmscriptenImplPrivate::dataReceived(char *buffer)
     totalDownloadSize = downloadBufferCurrentSize;
 
     emit q->downloadProgress(bytesDownloaded, totalDownloadSize);
-    qApp->processEvents();
+    //qApp->processEvents();
 
     qDebug() << Q_FUNC_INFO <<"current size" << downloadBufferCurrentSize;
     qDebug() << Q_FUNC_INFO <<"total size" << totalDownloadSize;// /*<< (int)state*/ << (char *)buffer;
@@ -447,7 +524,7 @@ void QNetworkReplyEmscriptenImplPrivate::dataReceived(char *buffer)
 
     emit q->metaDataChanged();
 
-    qApp->processEvents();
+    //qApp->processEvents();
 }
 
 //taken from qnetworkrequest.cpp
