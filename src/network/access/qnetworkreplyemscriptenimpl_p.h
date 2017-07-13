@@ -90,7 +90,7 @@ public:
 
     Q_PRIVATE_SLOT(d_func(), void emitReplyError(QNetworkReply::NetworkError errorCode))
     Q_PRIVATE_SLOT(d_func(), void emitDataReadProgress(qint64 done, qint64 total))
-    Q_PRIVATE_SLOT(d_func(), void dataReceived(char *buffer))
+    Q_PRIVATE_SLOT(d_func(), void dataReceived(char *buffer, int bufferSize))
 
 public Q_SLOTS:
     void emitReplyError(QNetworkReply::NetworkError errorCode);
@@ -120,7 +120,7 @@ public:
 
     void emitReplyError(QNetworkReply::NetworkError errorCode);
     void emitDataReadProgress(qint64 done, qint64 total);
-    void dataReceived(char *buffer);
+    void dataReceived(char *buffer, int bufferSize);
     void headersReceived(char *buffer);
 
     void setup(QNetworkAccessManager::Operation op, const QNetworkRequest &request,
@@ -141,7 +141,7 @@ public:
     qint64 downloadBufferCurrentSize;
     qint64 totalDownloadSize;
     qint64 percentFinished;
-    char *downloadZerocopyBuffer;
+    QByteArray downloadBuffer;
 
     QIODevice *outgoingData;
     QSharedPointer<QRingBuffer> outgoingDataBuffer;

@@ -548,6 +548,7 @@ void QThread::exit(int returnCode)
     d->exited = true;
     d->returnCode = returnCode;
     d->data->quitNow = true;
+    std::cout << "qthread exit quit now: " << data->quitNow << std::endl;
     for (int i = 0; i < d->data->eventLoops.size(); ++i) {
         QEventLoop *eventLoop = d->data->eventLoops.at(i);
         eventLoop->exit(returnCode);

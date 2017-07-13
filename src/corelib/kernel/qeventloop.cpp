@@ -54,8 +54,6 @@
     #include <emscripten.h>
 #endif
 
-#include <iostream>
-
 QT_BEGIN_NAMESPACE
 
 /*!
@@ -167,7 +165,6 @@ bool QEventLoop::processEvents(ProcessEventsFlags flags)
 */
 int QEventLoop::exec(ProcessEventsFlags flags)
 {
-    std::cout << "QEventLoop::exec: " << this << std::endl;
     Q_D(QEventLoop);
     if (d->threadData->quitNow)
         return -1;
@@ -240,12 +237,10 @@ int QEventLoop::exec(ProcessEventsFlags flags)
         QCoreApplication::removePostedEvents(app, QEvent::Quit);
 
     if (oldLoopLevel == 0 && d->threadData->loopLevel == 1) {
-        std::cout << "exec main loop" << std::endl;
         // main loop. can be only one
         emscripten_set_main_loop_arg(QEventLoop::processEvents, (void*)this, 0, 1);
     } else {
         // child loops
-        std::cout << "exec child loop" << std::endl;
         while (!d->exit.loadAcquire()) {
             emscripten_sleep(10);
             processEvents((void *)this);
@@ -259,7 +254,6 @@ int QEventLoop::exec(ProcessEventsFlags flags)
     --d->threadData->loopLevel;
 #endif // __EMSCRIPTEN__
 */
-    std::cout << "QEventLoop::exec return" << std::endl;
     return d->returnCode.load();
 }
 /*
@@ -326,31 +320,23 @@ void QEventLoop::processEvents(ProcessEventsFlags flags, int maxTime)
 */
 void QEventLoop::exit(int returnCode)
 {
-    std::cout << "Eventloop exit 1: " << returnCode << std::endl;
     Q_D(QEventLoop);
     if (!d->threadData->eventDispatcher.load())
         return;
 
-    std::cout << "Eventloop exit 2" << std::endl;
     d->returnCode.store(returnCode);
-    std::cout << "Eventloop exit 3" << std::endl;
     d->exit.storeRelease(true);
-    std::cout << "Eventloop exit 4" << std::endl;
     d->threadData->eventDispatcher.load()->interrupt();
 /*
 #ifdef __EMSCRIPTEN__
 
-    std::cout << "Eventloop exit 5" << std::endl;
     if (d->threadData->loopLevel == 1) {
-        std::cout << "Eventloop exit 6" << std::endl;
         emscripten_cancel_main_loop();
         emscripten_force_exit(returnCode);
     } else {
-        std::cout << "Eventloop exit 7" << std::endl;
         cleanup();
         d->threadData->eventLoops.at(0)->switchLoop_emscripten( d->threadData->eventLoops.at(0));
     }
-    std::cout << "Eventloop exit 8" << std::endl;
 #endif
 */
 }
