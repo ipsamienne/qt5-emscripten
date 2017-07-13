@@ -217,9 +217,14 @@ void QNetworkReplyEmscriptenImplPrivate::setup(QNetworkAccessManager::Operation 
     doSendRequest();
 }
 
-void QNetworkReplyEmscriptenImplPrivate::onLoadCallback(void *data, int readyState, int buffer, int bufferSize)
+void QNetworkReplyEmscriptenImplPrivate::onLoadCallback(void *data, int statusCode, int readyState, int buffer, int bufferSize)
 {
     QNetworkReplyEmscriptenImplPrivate *handler = reinterpret_cast<QNetworkReplyEmscriptenImplPrivate*>(data);
+
+    std::cout << "onLoad: " << statusCode << std::endl;
+    /*std::cout << "--- DATA ---" << std::endl
+        << ((char *)buffer) << std::endl
+        << "--- END DATA ---" << std::endl;*/
 
     // FIXME TODO do something with null termination lines ??
     qDebug() << Q_FUNC_INFO << (int)readyState << bufferSize;
@@ -234,7 +239,7 @@ void QNetworkReplyEmscriptenImplPrivate::onLoadCallback(void *data, int readySta
     case 3://loading
         break;
     case 4://done
-        handler->q_func()->setAttribute(QNetworkRequest::HttpStatusCodeAttribute, 200);
+        handler->q_func()->setAttribute(QNetworkRequest::HttpStatusCodeAttribute, statusCode);
         handler->dataReceived((char *)buffer, bufferSize);
         break;
     };
@@ -359,6 +364,8 @@ void QNetworkReplyEmscriptenImplPrivate::jsRequest(const QString &verb, const QS
                  update.loaded = e.loaded;
                  update.total = e.total;
                  update.date = date;
+
+                 window.progressUpdates.push(update);
               }
              break;
            }
@@ -388,6 +395,7 @@ void QNetworkReplyEmscriptenImplPrivate::jsRequest(const QString &verb, const QS
             response.cb = onLoadCallbackPointer;
             response.data = byteArray;
             response.readyState = this.readyState;
+            response.statusCode = this.status;
 
             if (window.responses == undefined)
                 window.responses = [];

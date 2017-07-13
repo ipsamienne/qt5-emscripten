@@ -289,7 +289,7 @@ void QHTML5EventTranslator::processEvents()
             for (i = 0; i < updates.length; ++i) {
                 var update = updates[i];
 
-                 Runtime.dynCall('viiii', update.cb, [response.handler, update.loaded, update.total, update.date]);
+                Runtime.dynCall('viiii', update.cb, [update.handler, update.loaded, update.total, update.date]);
             }
         }
 
@@ -319,7 +319,7 @@ void QHTML5EventTranslator::processEvents()
                 var byteArray = response.data;
                 var buffer = _malloc(byteArray.length);
                 HEAPU8.set(byteArray, buffer);
-                Module.Runtime.dynCall('viiii', response.cb, [response.handler, response.readyState, buffer, byteArray.length]);
+                Module.Runtime.dynCall('viiiii', response.cb, [response.handler, response.statusCode, response.readyState, buffer, byteArray.length]);
                 _free(buffer);
             }
         }
